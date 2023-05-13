@@ -121,30 +121,7 @@
             </widget>
            </item>
            <item>
-            <widget class="QListWidget" name="listWidget_2">
-             <property name="styleSheet">
-              <string notr="true">background-color: rgb(240, 240, 240);
-border-top-color: rgb(240, 240, 240);</string>
-             </property>
-             <item>
-              <property name="text">
-               <string>NONE</string>
-              </property>
-             </item>
-            </widget>
-           </item>
-           <item>
-            <spacer name="verticalSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>20</width>
-               <height>40</height>
-              </size>
-             </property>
-            </spacer>
+            <widget class="QTextEdit" name="textEdit"/>
            </item>
           </layout>
          </item>
@@ -327,6 +304,49 @@ border-top-color: rgb(240, 240, 240);</string>
      </widget>
     </item>
     <item>
+     <widget class="QGroupBox" name="groupBox_2">
+      <property name="title">
+       <string>Выбор формата и загрузка видео</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_8">
+       <item>
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_13">
+           <property name="text">
+            <string>Формат видео</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QComboBox" name="comboBox"/>
+         </item>
+         <item row="1" column="2">
+          <widget class="QPushButton" name="pushButton_2">
+           <property name="text">
+            <string>Скачать видео</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QPushButton" name="pushButton_3">
+           <property name="text">
+            <string>Выбрать папку сохранения</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
      <widget class="QGroupBox" name="groupBox_3">
       <property name="title">
        <string>Логирование</string>
@@ -335,49 +355,6 @@ border-top-color: rgb(240, 240, 240);</string>
        <set>Qt::AlignCenter</set>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_4">
-       <item>
-        <widget class="QGroupBox" name="groupBox_2">
-         <property name="title">
-          <string>Выбор формата и загрузка видео</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-         <layout class="QHBoxLayout" name="horizontalLayout_8">
-          <item>
-           <layout class="QGridLayout" name="gridLayout_2">
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_13">
-              <property name="text">
-               <string>Формат видео</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0">
-             <widget class="QComboBox" name="comboBox"/>
-            </item>
-            <item row="1" column="2">
-             <widget class="QPushButton" name="pushButton_2">
-              <property name="text">
-               <string>Скачать видео</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="QPushButton" name="pushButton_3">
-              <property name="text">
-               <string>Выбрать папку сохранения</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </widget>
-       </item>
        <item>
         <widget class="QListWidget" name="listWidget"/>
        </item>
