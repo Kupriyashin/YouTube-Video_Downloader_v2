@@ -16,13 +16,18 @@ from PIL import Image
 
 """
 Компиляция приложения в виде установщика - https://pythonist.ru/rukovodstvo-po-pyqt5/
+
 Преобразование uic -> py: pyuic5 Form/form_downloader.ui -o Form/Form_downloader.py
+
 Как удалить commit в Github:
 1. Получаем хэш-код коммита, к которому хотим вернуться.
 2. Заходим в папку репозитория и пишем в консоль:
     $ git reset --hard <хэш-код коммита> 
     $ git push --force
+    
+создание requirements файла: pip3 freeze > requirements.txt
 """
+
 logger.add("debug.log", format="{time} {level} {message}", level="DEBUG")
 
 
