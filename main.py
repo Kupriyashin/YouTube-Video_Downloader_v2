@@ -1,6 +1,8 @@
 import os
 import traceback
 import re
+from pprint import pprint
+
 import httplib2
 from PyQt5.QtGui import QIcon, QPixmap
 from loguru import logger
@@ -179,13 +181,37 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def working_with_youtube_objects(self, objects: dict):
         try:
             self.__YouTube_object = objects.get("object_youtube")
-            self.__streams = objects.get("stream_object")
+            self.__streams = list(enumerate(objects.get("stream_object")))
+
+            self._progressive_false = []
+            self._video = []
+            self._audio = []
+
+            for stream in self.__streams:
+                if "False" in str(stream[1]):
+                    self._progressive_false.append(stream)
+
+            for video in self._progressive_false:
+                if "vp9" in str(video[1]):
+                    self._video.append(video)
+
+            for audio in self._progressive_false:
+                if "opus" in str(audio[1]):
+                    self._audio.append(audio)
+            self._audio = self._audio[-1]
+
+            pprint(self._progressive_false)
+            print("----------------------")
+            pprint(self._video)
+            print("----------------------")
+            pprint(self._audio)
 
             logger.info(f"object_youtube: {self.__YouTube_object}")
-            logger.info(f"stream_object: {self.__streams}")
+            # logger.info(f"stream_object: {self.__streams}")
 
         except Exception:
             self.logging_of_information(text="❌❌❌Критическая ошибка! Повторите загрузку!❌❌❌", true_false=False)
+            logger.error(traceback.format_exc())
 
             self.ui.label.setPixmap(QPixmap("Title Image/error_image.jpg"))
 
@@ -335,12 +361,10 @@ class StreamToGetInformationAboutTheVideo(QThread):
                     self._signal_progress.emit(_ * 100 / 5)
 
                     self.__youtube_object = YouTube(self.url_video, on_progress_callback=self.progress_download)
-                    self.__youtube_streams = self.__youtube_object.streams.all()
+                    self.__youtube_streams = self.__youtube_object.streams
 
                     if self.__youtube_streams:
                         self._signal_streams_true.emit("Стримы видео получены успешно")
-
-                        self.__youtube_streams = list(enumerate(self.__youtube_streams))
 
                         break
                 except Exception:
