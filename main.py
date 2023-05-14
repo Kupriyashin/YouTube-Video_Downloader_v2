@@ -62,10 +62,47 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.ui.pushButton.clicked.connect(self.getting_information_about_the_video)
         self.ui.pushButton_3.clicked.connect(lambda: self.path_saved_video())
+        self.ui.pushButton_2.clicked.connect(lambda: self.video_and_audio_download())
 
         self.ui.comboBox.setEnabled(False)
         self.ui.pushButton_3.setEnabled(False)
         self.ui.pushButton_2.setEnabled(False)
+
+    @logger.catch()
+    def video_and_audio_download(self):
+        try:
+            logger.info("------Все работает------")
+            logger.info(f"{self.__path_saved}") #пусть
+            logger.info(f"{self.__YouTube_object}") #объект ютуба
+            logger.info(f"{self._audio}") #аудио стрим
+            logger.info(f"{self.__streams}") #видео стрим
+
+
+
+        except Exception:
+
+            self.logging_of_information(text="❌❌❌Критическая ошибка! Повторите загрузку!❌❌❌", true_false=False)
+            logger.error(traceback.format_exc())
+
+            self.ui.label.setPixmap(QPixmap("Title Image/error_image.jpg"))
+
+            self.ui.textEdit.clear()
+            self.ui.textEdit.setText("Нет информации")
+
+            self.ui.lineEdit.setEnabled(True)
+            self.ui.pushButton.setEnabled(True)
+
+            self.ui.label_4.setText("Нет информации")
+            self.ui.label_4.setStyleSheet("color: red;")
+            self.ui.label_6.setText("Нет информации")
+            self.ui.label_6.setStyleSheet("color: red;")
+            self.ui.label_10.setText("Нет информации")
+            self.ui.label_10.setStyleSheet("color: red;")
+            self.ui.label_12.setText("Нет информации")
+            self.ui.label_12.setStyleSheet("color: red;")
+            self.ui.label_15.setText("Нет информации")
+            self.ui.label_15.setStyleSheet("color: red;")
+            self.ui.comboBox.clear()
 
     @logger.catch()
     def path_saved_video(self):
@@ -110,6 +147,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.label_12.setStyleSheet("color: red;")
             self.ui.label_15.setText("Нет информации")
             self.ui.label_15.setStyleSheet("color: red;")
+            self.ui.comboBox.clear()
 
     @logger.catch()
     def download_progress(self, chunk, file_handle, bytes_remaining):
@@ -518,6 +556,9 @@ class StreamToGetInformationAboutTheVideo(QThread):
 
         except Exception:
             self._signal_error.emit("Ошибка при получении информации о видео")
+
+class UploadingVideosAudioCombiningThem(QThread):
+    pass
 
 
 if __name__ == '__main__':
