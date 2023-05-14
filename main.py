@@ -1,7 +1,6 @@
 import os
 import traceback
 import re
-from pprint import pprint
 
 import httplib2
 from PyQt5.QtGui import QIcon, QPixmap
@@ -9,7 +8,7 @@ from loguru import logger
 from pytube import YouTube
 from datetime import datetime
 from datetime import timedelta
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QFileDialog
 from PyQt5 import QtWidgets
 import sys
 from Form import Ui_MainWindow
@@ -38,20 +37,22 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
 
+        self._progressive_false = None
+        self._video = None
+        self._audio = None
+
         self.__url_video = None
         self.__YouTube_object = None
         self.__streams = None
+        self.__path_saved = None
 
         self._thread_video_information = None
+
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
         self.setWindowTitle("Video YouTube Downloader")
         self.setWindowIcon(QIcon("Resources/folderreddownload_93315.ico"))
-
-        self.ui.comboBox.setEnabled(False)
-        self.ui.pushButton_3.setEnabled(False)
-        self.ui.pushButton_2.setEnabled(False)
 
         self.ui.label.setPixmap(QPixmap(r"Title Image/error_image.jpg"))
 
@@ -60,6 +61,55 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.ui.textEdit.setText("Нет информации")
 
         self.ui.pushButton.clicked.connect(self.getting_information_about_the_video)
+        self.ui.pushButton_3.clicked.connect(lambda: self.path_saved_video())
+
+        self.ui.comboBox.setEnabled(False)
+        self.ui.pushButton_3.setEnabled(False)
+        self.ui.pushButton_2.setEnabled(False)
+
+    @logger.catch()
+    def path_saved_video(self):
+        try:
+            _path_directory = QFileDialog.getExistingDirectory(self, 'Выберите папку для сохранения видео')
+
+            if _path_directory:
+                self.__path_saved = _path_directory
+
+                self.logging_of_information(text=f"Папка сохранения файла: {self.__path_saved}", true_false=True)
+                self.logging_of_information(text=f"ВЫ МОЖЕТЕ СКАЧАТЬ ВИДЕО В ВЫБРАННОМ КАЧЕСТВЕ", true_false=True)
+                logger.info(f"Путь сохранения видео: {self.__path_saved}")
+
+                self.ui.comboBox.setEnabled(False)
+                self.ui.pushButton_3.setEnabled(False)
+                self.ui.pushButton_2.setEnabled(True)
+
+            else:
+
+                self.logging_of_information(text="Папка сохранения не выбрана", true_false=False)
+
+        except Exception:
+
+            self.logging_of_information(text="❌❌❌Критическая ошибка! Повторите загрузку!❌❌❌", true_false=False)
+            logger.error(traceback.format_exc())
+
+            self.ui.label.setPixmap(QPixmap("Title Image/error_image.jpg"))
+
+            self.ui.textEdit.clear()
+            self.ui.textEdit.setText("Нет информации")
+
+            self.ui.lineEdit.setEnabled(True)
+            self.ui.pushButton.setEnabled(True)
+
+            self.ui.label_4.setText("Нет информации")
+            self.ui.label_4.setStyleSheet("color: red;")
+            self.ui.label_6.setText("Нет информации")
+            self.ui.label_6.setStyleSheet("color: red;")
+            self.ui.label_10.setText("Нет информации")
+            self.ui.label_10.setStyleSheet("color: red;")
+            self.ui.label_12.setText("Нет информации")
+            self.ui.label_12.setStyleSheet("color: red;")
+            self.ui.label_15.setText("Нет информации")
+            self.ui.label_15.setStyleSheet("color: red;")
 
     @logger.catch()
     def download_progress(self, chunk, file_handle, bytes_remaining):
@@ -183,31 +233,44 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.__YouTube_object = objects.get("object_youtube")
             self.__streams = list(enumerate(objects.get("stream_object")))
 
+            logger.info(f"object_youtube: {self.__YouTube_object}")
+            logger.info(f"stream_object: {self.__streams}")
+
             self._progressive_false = []
             self._video = []
             self._audio = []
 
+            # получаю только стримы с раздельным видео и аудио
             for stream in self.__streams:
                 if "False" in str(stream[1]):
                     self._progressive_false.append(stream)
 
+            # получаю стримы только с видеокодеком vp9
             for video in self._progressive_false:
                 if "vp9" in str(video[1]):
                     self._video.append(video)
+                    item = str(video).split(' ')[2].split('"') + str(video).split(' ')[4].split('"')
+                    item = f"{item[4]} - Тег: {item[1]}"
+                    logger.info(f"Item в комбобокс: {item}")
+                    self.ui.comboBox.addItem(item)
+                    self.logging_of_information(text=f"Можно скачать {item}", true_false=True)
 
+            # получаю аудио только с аудиокодеком opus
             for audio in self._progressive_false:
                 if "opus" in str(audio[1]):
                     self._audio.append(audio)
+
+            # беру самый тяжелый по скачиванию стрим аудио
             self._audio = self._audio[-1]
 
-            pprint(self._progressive_false)
-            print("----------------------")
-            pprint(self._video)
-            print("----------------------")
-            pprint(self._audio)
+            self.ui.comboBox.setEnabled(True)
+            self.ui.pushButton_3.setEnabled(True)
 
-            logger.info(f"object_youtube: {self.__YouTube_object}")
-            # logger.info(f"stream_object: {self.__streams}")
+            logger.info(self._progressive_false)
+            logger.info(self._video)
+            logger.info(self._audio)
+
+
 
         except Exception:
             self.logging_of_information(text="❌❌❌Критическая ошибка! Повторите загрузку!❌❌❌", true_false=False)
