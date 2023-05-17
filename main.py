@@ -37,6 +37,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
 
+        self._download_video_class_thread = None
+        self._stream = None
         self._progressive_false = None
         self._video = None
         self._audio = None
@@ -71,13 +73,43 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     @logger.catch()
     def video_and_audio_download(self):
         try:
-            logger.info("------Все работает------")
-            logger.info(f"{self.__path_saved}") #пусть
-            logger.info(f"{self.__YouTube_object}") #объект ютуба
-            logger.info(f"{self._audio}") #аудио стрим
-            logger.info(f"{self.__streams}") #видео стрим
+            self._stream = self.ui.comboBox.currentText().split(': ')[-1]
+            logger.info(self._stream)
 
+            for item in self.__streams:
+                if self._stream in str(item[-1]):
+                    self.__streams = item
+                    break
 
+            logger.info("__________________Основные передаваемые объекты для скачивания__________________")
+            logger.info(f"{self.__path_saved}")  # пусть
+            logger.info(f"{self.__YouTube_object}")  # объект ютуба
+            logger.info(f"{self._audio}")  # аудио стрим
+            logger.info(f"{self.__streams}")  # видео стрим
+
+            self._download_video_class_thread = UploadingVideosAudioCombiningThem(download_path=self.__path_saved,
+                                                                                  youtube_object=self.__YouTube_object,
+                                                                                  audio=self._audio,
+                                                                                  stream=self.__streams)
+
+            # начало потока
+            self._download_video_class_thread.started.connect(
+                lambda: self.logging_of_information(text="Начал скачивание видео", true_false=True))
+
+            self._download_video_class_thread.started.connect(
+                lambda: self.ui.progressBar.setValue(0))
+
+            # конец потока
+            self._download_video_class_thread.finished.connect(
+                lambda: self.logging_of_information(text="Видео скачано", true_false=True))
+
+            self._download_video_class_thread.finished.connect(
+                lambda: self.ui.progressBar.setValue(100))
+
+            self._download_video_class_thread.finished.connect(lambda: self.finished_download_video())
+
+            # запуск потока
+            self._download_video_class_thread.start()
 
         except Exception:
 
@@ -103,6 +135,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.label_15.setText("Нет информации")
             self.ui.label_15.setStyleSheet("color: red;")
             self.ui.comboBox.clear()
+
+    @logger.catch()
+    def finished_download_video(self):
+
+        self.ui.comboBox.clear()
+        self.ui.comboBox.setEnabled(False)
+        self.ui.pushButton_3.setEnabled(False)
+
+        self.ui.pushButton_2.setEnabled(False)
+
+        self.ui.lineEdit.clear()
+        self.ui.lineEdit.setEnabled(True)
+        self.ui.pushButton.setEnabled(True)
 
     @logger.catch()
     def path_saved_video(self):
@@ -302,13 +347,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self._audio = self._audio[-1]
 
             self.ui.comboBox.setEnabled(True)
-            self.ui.pushButton_3.setEnabled(True)
+            if self.__path_saved:
+                self.ui.pushButton_3.setEnabled(False)
+                self.ui.pushButton_2.setEnabled(True)
+            else:
+                self.ui.pushButton_3.setEnabled(True)
 
             logger.info(self._progressive_false)
             logger.info(self._video)
             logger.info(self._audio)
-
-
 
         except Exception:
             self.logging_of_information(text="❌❌❌Критическая ошибка! Повторите загрузку!❌❌❌", true_false=False)
@@ -430,7 +477,7 @@ class StreamToGetInformationAboutTheVideo(QThread):
     """
 
     _signal_information_text_true = pyqtSignal(str)
-    _signal_error = pyqtSignal(str)  # сигнал о ошибка
+    _signal_error = pyqtSignal(str)  # сигнал об ошибке
     _signal_streams_true = pyqtSignal(str)  # сигнал о получении стримов видео
     _signal_progress = pyqtSignal(int)  # сигнал о прогрессе получения информации
 
@@ -475,7 +522,7 @@ class StreamToGetInformationAboutTheVideo(QThread):
             logger.info(f"Получен объект streams: {self.__youtube_streams}, его тип: {type(self.__youtube_streams)}")
 
             self._signal_progress.emit(0)
-            # Автор видео
+            """Автор видео"""
             try:
                 self._signal_author.emit(str(self.__youtube_object.author))
                 self._signal_progress.emit(int(100 / 7))
@@ -484,7 +531,7 @@ class StreamToGetInformationAboutTheVideo(QThread):
             except Exception:
                 self._signal_error.emit("Ошибка получения автора видео")
 
-            # Название видео
+            """Название видео"""
             try:
                 self._signal_title.emit(str(self.__youtube_object.title))
                 self._signal_progress.emit(int(100 / 6))
@@ -493,7 +540,7 @@ class StreamToGetInformationAboutTheVideo(QThread):
             except Exception:
                 self._signal_error.emit("Ошибка получения названия видео")
 
-            # Ключевые слова видео
+            """Ключевые слова видео"""
             try:
                 _keyword = ", ".join(self.__youtube_object.keywords)
                 self._signal_keywords_video.emit(str(_keyword))
@@ -503,7 +550,7 @@ class StreamToGetInformationAboutTheVideo(QThread):
             except Exception:
                 self._signal_error.emit("Ошибка получения ключевых слов видео")
 
-            # Количество просмотров видео
+            """Количество просмотров видео"""
             try:
                 self._signal_views.emit(str(self.__youtube_object.views))
                 self._signal_progress.emit(int(100 / 4))
@@ -512,7 +559,7 @@ class StreamToGetInformationAboutTheVideo(QThread):
             except Exception:
                 self._signal_error.emit("Ошибка получения просмотров видео")
 
-            # Длина видео
+            """Длина видео"""
             try:
                 self._signal_length.emit(str(timedelta(seconds=self.__youtube_object.length)))
                 self._signal_progress.emit(int(100 / 3))
@@ -521,7 +568,7 @@ class StreamToGetInformationAboutTheVideo(QThread):
             except Exception:
                 self._signal_error.emit("Ошибка при получении длины видео")
 
-            # Описание видео
+            """Описание видео"""
             try:
 
                 self._signal_description.emit(str(self.__youtube_object.description))
@@ -531,7 +578,7 @@ class StreamToGetInformationAboutTheVideo(QThread):
             except Exception:
                 self._signal_error.emit("Ошибка при получении описания видео")
 
-            # Титульное изображение видео
+            """Титульное изображение видео"""
             try:
                 self._thumbnail_url = self.__youtube_object.thumbnail_url  # ссылка на титульное изображение
 
@@ -557,8 +604,27 @@ class StreamToGetInformationAboutTheVideo(QThread):
         except Exception:
             self._signal_error.emit("Ошибка при получении информации о видео")
 
+
 class UploadingVideosAudioCombiningThem(QThread):
-    pass
+    """
+    Класс неосновного потока в котором скачивается аудио и видео
+    Объединяет видео и аудио в один файл
+    """
+
+    def __init__(self, download_path, youtube_object, audio, stream, parent=None):
+        QThread.__init__(self, parent)
+        self.path = download_path
+        self.youtube_object = youtube_object
+        self.audio = audio
+        self.stream = stream
+
+    def run(self):
+        logger.info("Новый поток работает!"
+                    "____________________________________")
+        logger.info(self.path)
+        logger.info(self.youtube_object)
+        logger.info(self.audio)
+        logger.info(self.stream)
 
 
 if __name__ == '__main__':
