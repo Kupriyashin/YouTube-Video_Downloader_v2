@@ -1,6 +1,8 @@
 from datetime import timedelta
+from typing import Any
 
 import httplib2
+import pytube
 from loguru import logger
 from PyQt5.QtCore import pyqtSignal, QObject
 from pytube import YouTube
@@ -35,12 +37,31 @@ class WorkingWithVideos(QObject):
     _signal_title_image = pyqtSignal(str)
     _completely_finished_the_work = pyqtSignal(dict)
 
-    def __init__(self, url: str, progress):
+    # Сигналы для скачивания видео
+    _signal_progress_download = pyqtSignal(str)
+    _signal_stop_work = pyqtSignal()
+
+    def __init__(self, url: str = None, path_save: str = None, youtube_object: pytube.YouTube = None,
+                 audio_object: tuple = None,
+                 video_object: tuple = None):
         super(WorkingWithVideos, self).__init__()
-        self.__youtube_object = None
-        self.__youtube_streams = None
+
+        self.progress_download = None
+        self.path_save = path_save
+        self.youtube_object = youtube_object
+        self.audio_object = audio_object
+        self.video_object = video_object
+
         self.url_video = url
-        self.progress_download = progress
+
+    @logger.catch()
+    def download_progress(self, stream, chunk, file_handle, bytes_remaining):
+        logger.info(f"stream: {stream}")
+        logger.info(f"chunk: {chunk}")
+        logger.info(f"file_handle: {file_handle}")
+        logger.info(f"bytes_remaining: {bytes_remaining}")
+
+        self._signal_progress_download.emit(str(file_handle))
 
     def get_information(self):
         """
@@ -53,7 +74,8 @@ class WorkingWithVideos(QObject):
                 try:
                     self._signal_progress.emit(_ * 100 / 5)
 
-                    self.__youtube_object = YouTube(self.url_video, on_progress_callback=self.progress_download)
+                    self.__youtube_object = YouTube(url=self.url_video)
+                    self.__youtube_object.register_on_progress_callback(self.progress_download)
                     self.__youtube_streams = self.__youtube_object.streams
 
                     if self.__youtube_streams:
@@ -151,5 +173,14 @@ class WorkingWithVideos(QObject):
         except Exception:
             self._signal_error.emit("Ошибка при получении информации о видео")
 
-    def dowload_video_and_audio(self):
-        pass
+    def download_video_and_audio(self):
+        # Проверяю все работает и все ли передается
+        logger.info(f"download_video_and_audio path_save: {self.path_save}")
+        logger.info(f"download_video_and_audio youtube_object: {self.youtube_object}")
+        logger.info(f"download_video_and_audio audio_object: {self.audio_object}")
+        logger.info(f"download_video_and_audio video_object: {self.video_object}")
+
+        # self.audio_object[-1].download(self.path_save)
+        self.video_object[-1].download(self.path_save)
+        logger.info("Аудио скачано!")
+        self._signal_stop_work.emit()

@@ -14,6 +14,12 @@ from Form import Ui_MainWindow
 from Working_with_videos import WorkingWithVideos
 
 """
+Лучше сделать еще один файл с классом под еще 1 поток!
+При первом вызове потока лучше явно вызывать выход из него (то есть испускать из него сигнал и по данному сигналу его закрывать)
+А то че то он когда хочет закрывается, как то странно
+"""
+
+"""
 Компиляция приложения в виде установщика - https://pythonist.ru/rukovodstvo-po-pyqt5/
 
 Преобразование uic -> py: pyuic5 Form/form_downloader.ui -o Form/Form_downloader.py
@@ -35,6 +41,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
 
+        self._working_with_videos_class = None
         self._additional_stream_class = None
         self._download_video_class_thread = None
         self._stream = None
@@ -70,8 +77,22 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.ui.pushButton_2.setEnabled(False)
 
     @logger.catch()
+    def finished_download_video(self):
+
+        self.ui.comboBox.clear()
+        self.ui.comboBox.setEnabled(False)
+        self.ui.pushButton_3.setEnabled(False)
+
+        self.ui.pushButton_2.setEnabled(False)
+
+        self.ui.lineEdit.clear()
+        self.ui.lineEdit.setEnabled(True)
+        self.ui.pushButton.setEnabled(True)
+
+    @logger.catch()
     def video_and_audio_download(self):
         try:
+            self.ui.pushButton_2.setEnabled(False)
             self._stream = self.ui.comboBox.currentText().split(': ')[-1]
             logger.info(self._stream)
 
@@ -81,36 +102,46 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     break
 
             logger.info("__________________Основные передаваемые объекты для скачивания__________________")
-            logger.info(f"{self.__path_saved}")  # пусть
-            logger.info(f"{self.__YouTube_object}")  # объект ютуба
-            logger.info(f"{self._audio}")  # аудио стрим
-            logger.info(f"{self.__streams}")  # видео стрим
+            logger.info(f"Объект пути сохранения: {self.__path_saved}")  # пусть
+            logger.info(f"Объект Ютуба: {self.__YouTube_object}")  # объект ютуба
+            logger.info(f"Объект аудио: {self._audio}")  # аудио стрим
+            logger.info(f"Объект видео: {self.__streams}")  # видео стрим
 
-            # self._download_video_class_thread = UploadingVideosAudioCombiningThem(download_path=self.__path_saved,
-            #                                                                       youtube_object=self.__YouTube_object,
-            #                                                                       audio=self._audio,
-            #                                                                       stream=self.__streams)
-            #
-            # # начало потока
-            # self._download_video_class_thread.started.connect(
-            #     lambda: self.logging_of_information(text="Начал скачивание видео", true_false=True))
-            #
-            # self._download_video_class_thread.started.connect(
-            #     lambda: self.ui.progressBar.setValue(0))
-            #
-            # # конец потока
-            # self._download_video_class_thread.finished.connect(
-            #     lambda: self.logging_of_information(text="Видео скачано", true_false=True))
-            #
-            # self._download_video_class_thread.finished.connect(
-            #     lambda: self.ui.progressBar.setValue(100))
-            #
-            # self._download_video_class_thread.finished.connect(lambda: self.finished_download_video())
-            #
-            # # запуск потока
-            # self._download_video_class_thread.start()
+            logger.info(f"Тип данных пути: {type(self.__path_saved)}")  # тип данных пусть
+            logger.info(f"Тип данных объекта ютуб: {type(self.__YouTube_object)}")  # тип данных объект ютуба
+            logger.info(f"Тип данных аудио: {type(self._audio)}")  # тип данных аудио стрим
+            logger.info(f"Тип данных видео: {type(self.__streams)}")  # тип данных видео стрим
 
-            self.finished_download_video()
+            # создание экземпляра класса загрузки видео с нужными параметрами
+            self._working_with_videos_class = WorkingWithVideos(path_save=self.__path_saved,
+                                                                youtube_object=self.__YouTube_object,
+                                                                audio_object=self._audio,
+                                                                video_object=self.__streams)
+
+            # класс дополнительного потока и помещения объекта в поток
+            self._additional_stream_class_2 = QThread()
+            self._working_with_videos_class.moveToThread(self._additional_stream_class)
+
+            # начало потока
+            self._additional_stream_class_2.started.connect(self._working_with_videos_class.download_video_and_audio)
+
+            # рабочие сигналы
+            self._working_with_videos_class._signal_progress_download.connect(
+                lambda text: self.logging_of_information(text=text, true_false=True))
+
+            # конец потока
+            self._working_with_videos_class._signal_stop_work.connect(
+                lambda: self.logging_of_information(text="Аудио скачано!", true_false=True))
+
+            self._working_with_videos_class._signal_stop_work.connect(lambda: self.finished_download_video)
+
+            self._working_with_videos_class._signal_stop_work.connect(lambda: self._additional_stream_class.quit())
+
+            self._additional_stream_class_2.finished.connect(
+                lambda: self.logging_of_information(text="Поток выключен", true_false=True))
+
+            # запуск потока
+            self._additional_stream_class_2.start()
 
         except Exception:
 
@@ -136,19 +167,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.label_15.setText("Нет информации")
             self.ui.label_15.setStyleSheet("color: red;")
             self.ui.comboBox.clear()
-
-    @logger.catch()
-    def finished_download_video(self):
-
-        self.ui.comboBox.clear()
-        self.ui.comboBox.setEnabled(False)
-        self.ui.pushButton_3.setEnabled(False)
-
-        self.ui.pushButton_2.setEnabled(False)
-
-        self.ui.lineEdit.clear()
-        self.ui.lineEdit.setEnabled(True)
-        self.ui.pushButton.setEnabled(True)
 
     @logger.catch()
     def path_saved_video(self):
@@ -194,12 +212,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.label_15.setText("Нет информации")
             self.ui.label_15.setStyleSheet("color: red;")
             self.ui.comboBox.clear()
-
-    @logger.catch()
-    def download_progress(self, chunk, file_handle, bytes_remaining):
-        logger.info(f"chunk: {chunk}")
-        logger.info(f"file_handle: {file_handle}")
-        logger.info(f"bytes_remaining: {bytes_remaining}")
 
     @logger.catch()
     def logging_of_information(self, text: str, true_false: bool):
@@ -255,8 +267,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         try:
             # объект класса для получения информации и скачивания видео
-            self._thread_video_information = WorkingWithVideos(url=self.__url_video,
-                                                               progress=self.download_progress)
+            self._thread_video_information = WorkingWithVideos(url=self.__url_video)
 
             # класс дополнительного потока и помещения объекта в поток
             self._additional_stream_class = QThread()
@@ -472,28 +483,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             logger.info(f"Автор видео: {author}")
         except Exception:
             self.logging_of_information(text="Ошибка при получении автора видео", true_false=False)
-
-
-# class UploadingVideosAudioCombiningThem(QThread):
-#     """
-#     Класс неосновного потока в котором скачивается аудио и видео
-#     Объединяет видео и аудио в один файл
-#     """
-#
-#     def __init__(self, download_path, youtube_object, audio, stream, parent=None):
-#         QThread.__init__(self, parent)
-#         self.path = download_path
-#         self.youtube_object = youtube_object
-#         self.audio = audio
-#         self.stream = stream
-#
-#     def run(self):
-#         logger.info("Новый поток работает!"
-#                     "____________________________________")
-#         logger.info(self.path)
-#         logger.info(self.youtube_object)
-#         logger.info(self.audio)
-#         logger.info(self.stream)
 
 
 if __name__ == '__main__':
