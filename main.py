@@ -112,36 +112,33 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             logger.info(f"Тип данных аудио: {type(self._audio)}")  # тип данных аудио стрим
             logger.info(f"Тип данных видео: {type(self.__streams)}")  # тип данных видео стрим
 
-            # создание экземпляра класса загрузки видео с нужными параметрами
-            self._working_with_videos_class = WorkingWithVideos(path_save=self.__path_saved,
-                                                                youtube_object=self.__YouTube_object,
-                                                                audio_object=self._audio,
-                                                                video_object=self.__streams)
-
-            # класс дополнительного потока и помещения объекта в поток
-            self._additional_stream_class_2 = QThread()
-            self._working_with_videos_class.moveToThread(self._additional_stream_class)
-
-            # начало потока
-            self._additional_stream_class_2.started.connect(self._working_with_videos_class.download_video_and_audio)
-
-            # рабочие сигналы
-            self._working_with_videos_class._signal_progress_download.connect(
-                lambda text: self.logging_of_information(text=text, true_false=True))
-
-            # конец потока
-            self._working_with_videos_class._signal_stop_work.connect(
-                lambda: self.logging_of_information(text="Аудио скачано!", true_false=True))
-
-            self._working_with_videos_class._signal_stop_work.connect(lambda: self.finished_download_video)
-
-            self._working_with_videos_class._signal_stop_work.connect(lambda: self._additional_stream_class.quit())
-
-            self._additional_stream_class_2.finished.connect(
-                lambda: self.logging_of_information(text="Поток выключен", true_false=True))
-
-            # запуск потока
-            self._additional_stream_class_2.start()
+            # # создание экземпляра класса загрузки видео с нужными параметрами
+            # self._working_with_videos_class = WorkingWithVideos()
+            #
+            # # класс дополнительного потока и помещения объекта в поток
+            # self._additional_stream_class_2 = QThread()
+            # self._working_with_videos_class.moveToThread(self._additional_stream_class)
+            #
+            # # начало потока
+            # self._additional_stream_class_2.started.connect(self._working_with_videos_class.download_video_and_audio)
+            #
+            # # рабочие сигналы
+            # self._working_with_videos_class._signal_progress_download.connect(
+            #     lambda text: self.logging_of_information(text=text, true_false=True))
+            #
+            # # конец потока
+            # self._working_with_videos_class._signal_stop_work.connect(
+            #     lambda: self.logging_of_information(text="Аудио скачано!", true_false=True))
+            #
+            # self._working_with_videos_class._signal_stop_work.connect(lambda: self.finished_download_video)
+            #
+            # self._working_with_videos_class._signal_stop_work.connect(lambda: self._additional_stream_class.quit())
+            #
+            # self._additional_stream_class_2.finished.connect(
+            #     lambda: self.logging_of_information(text="Поток выключен", true_false=True))
+            #
+            # # запуск потока
+            # self._additional_stream_class_2.start()
 
         except Exception:
 
@@ -286,6 +283,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self._thread_video_information._signal_error.connect(
                 lambda text: self.logging_of_information(text=text, true_false=False))
 
+            self._thread_video_information._signal_error_crit.connect(lambda: self.error_crit)
+
             self._thread_video_information._signal_streams_true.connect(
                 lambda text: self.logging_of_information(text=text, true_false=True))
 
@@ -313,13 +312,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 lambda objects: self.working_with_youtube_objects(objects))
 
             # конец потока
+
+            self._thread_video_information._completely_finished_the_work.connect(self._additional_stream_class.quit)
+
             self._additional_stream_class.finished.connect(
                 lambda: self.logging_of_information(text="Получение информации окончено", true_false=True))
 
             self._additional_stream_class.finished.connect(
                 lambda: self.ui.progressBar.setValue(100))
-
-            self._additional_stream_class.finished.connect(self._additional_stream_class.quit)
 
             # запуск потока
             self._additional_stream_class.start()
@@ -330,6 +330,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
             self.ui.lineEdit.setEnabled(True)
             self.ui.pushButton.setEnabled(True)
+
+    @logger.catch()
+    def error_crit(self):
+        self.ui.pushButton.setEnabled(True)
+        self.ui.lineEdit.setEnabled(True)
 
     @logger.catch()
     def working_with_youtube_objects(self, objects: dict):
@@ -401,6 +406,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.label_15.setText("Нет информации")
             self.ui.label_15.setStyleSheet("color: red;")
 
+
+# ___________________________ Методы для заполнения информации о видосе в полях ___________________________
     @logger.catch()
     def image_title_add(self, path: str):
         try:

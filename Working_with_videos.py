@@ -1,10 +1,9 @@
+import traceback
 from datetime import timedelta
-from typing import Any
 
 import httplib2
-import pytube
 from loguru import logger
-from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtCore import pyqtSignal, QObject, pyqtSlot
 from pytube import YouTube
 from PIL import Image
 
@@ -36,33 +35,25 @@ class WorkingWithVideos(QObject):
     _signal_description = pyqtSignal(str)
     _signal_title_image = pyqtSignal(str)
     _completely_finished_the_work = pyqtSignal(dict)
+    _signal_error_crit = pyqtSignal()
 
-    # Сигналы для скачивания видео
-    _signal_progress_download = pyqtSignal(str)
-    _signal_stop_work = pyqtSignal()
+    # # Сигналы для скачивания видео
+    # _signal_progress_download = pyqtSignal(str)
+    # _signal_stop_work = pyqtSignal()
 
-    def __init__(self, url: str = None, path_save: str = None, youtube_object: pytube.YouTube = None,
-                 audio_object: tuple = None,
-                 video_object: tuple = None):
+    def __init__(self, url: str = None, progress_download=None):
         super(WorkingWithVideos, self).__init__()
-
-        self.progress_download = None
-        self.path_save = path_save
-        self.youtube_object = youtube_object
-        self.audio_object = audio_object
-        self.video_object = video_object
-
         self.url_video = url
 
+    # @logger.catch()
+    # def download_progress(self, stream, chunk, file_handle, bytes_remaining):
+    #     logger.info(f"stream: {stream}")
+    #     logger.info(f"chunk: {chunk}")
+    #     logger.info(f"file_handle: {file_handle}")
+    #     logger.info(f"bytes_remaining: {bytes_remaining}")
+
     @logger.catch()
-    def download_progress(self, stream, chunk, file_handle, bytes_remaining):
-        logger.info(f"stream: {stream}")
-        logger.info(f"chunk: {chunk}")
-        logger.info(f"file_handle: {file_handle}")
-        logger.info(f"bytes_remaining: {bytes_remaining}")
-
-        self._signal_progress_download.emit(str(file_handle))
-
+    @pyqtSlot()
     def get_information(self):
         """
         Чтобы не возникало ошибок при загрузке стримов видео необходимо в файле
@@ -75,15 +66,17 @@ class WorkingWithVideos(QObject):
                     self._signal_progress.emit(_ * 100 / 5)
 
                     self.__youtube_object = YouTube(url=self.url_video)
-                    self.__youtube_object.register_on_progress_callback(self.progress_download)
+                    # self.__youtube_object.register_on_progress_callback(self.progress_download)
                     self.__youtube_streams = self.__youtube_object.streams
 
                     if self.__youtube_streams:
                         self._signal_streams_true.emit("Стримы видео получены успешно")
-
+                        for _ in self.__youtube_streams:
+                            self._signal_streams_true.emit(f"Стрим видео: {_}")
                         break
                 except Exception:
                     self._signal_error.emit("Ошибка при получении стримов видео")
+                    logger.error(traceback.format_exc())
 
             logger.info(f"Получен объект youtube: {self.__youtube_object}, его тип: {type(self.__youtube_object)}")
             logger.info(f"Получен объект streams: {self.__youtube_streams}, его тип: {type(self.__youtube_streams)}")
@@ -94,18 +87,22 @@ class WorkingWithVideos(QObject):
                 self._signal_author.emit(str(self.__youtube_object.author))
                 self._signal_progress.emit(int(100 / 7))
                 self._signal_information_text_true.emit("Автор видео найден")
+                self._signal_information_text_true.emit(f"Автор видео: {str(self.__youtube_object.author)}")
 
             except Exception:
                 self._signal_error.emit("Ошибка получения автора видео")
+                logger.error(traceback.format_exc())
 
             """Название видео"""
             try:
                 self._signal_title.emit(str(self.__youtube_object.title))
                 self._signal_progress.emit(int(100 / 6))
                 self._signal_information_text_true.emit("Название видео найдено")
+                self._signal_information_text_true.emit(f"Название видео: {str(self.__youtube_object.title)}")
 
             except Exception:
                 self._signal_error.emit("Ошибка получения названия видео")
+                logger.error(traceback.format_exc())
 
             """Ключевые слова видео"""
             try:
@@ -113,27 +110,34 @@ class WorkingWithVideos(QObject):
                 self._signal_keywords_video.emit(str(_keyword))
                 self._signal_progress.emit(int(100 / 5))
                 self._signal_information_text_true.emit("Ключевые слова получены")
+                self._signal_information_text_true.emit(f"Ключевые слова: {str(_keyword)}")
 
             except Exception:
                 self._signal_error.emit("Ошибка получения ключевых слов видео")
+                logger.error(traceback.format_exc())
 
             """Количество просмотров видео"""
             try:
                 self._signal_views.emit(str(self.__youtube_object.views))
                 self._signal_progress.emit(int(100 / 4))
                 self._signal_information_text_true.emit("Количество просмотров получено")
+                self._signal_information_text_true.emit(f"Количество просмотров: {str(self.__youtube_object.views)}")
 
             except Exception:
                 self._signal_error.emit("Ошибка получения просмотров видео")
+                logger.error(traceback.format_exc())
 
             """Длина видео"""
             try:
                 self._signal_length.emit(str(timedelta(seconds=self.__youtube_object.length)))
                 self._signal_progress.emit(int(100 / 3))
                 self._signal_information_text_true.emit("Длина видео получена")
+                self._signal_information_text_true.emit(
+                    f"Длина видео: {str(timedelta(seconds=self.__youtube_object.length))}")
 
             except Exception:
                 self._signal_error.emit("Ошибка при получении длины видео")
+                logger.error(traceback.format_exc())
 
             """Описание видео"""
             try:
@@ -141,9 +145,12 @@ class WorkingWithVideos(QObject):
                 self._signal_description.emit(str(self.__youtube_object.description))
                 self._signal_progress.emit(int(100 / 2))
                 self._signal_information_text_true.emit("Описание видео получено")
+                self._signal_information_text_true.emit(
+                    f"Описание видео: {str(self.__youtube_object.description)}")
 
             except Exception:
                 self._signal_error.emit("Ошибка при получении описания видео")
+                logger.error(traceback.format_exc())
 
             """Титульное изображение видео"""
             try:
@@ -166,21 +173,24 @@ class WorkingWithVideos(QObject):
 
             except Exception:
                 self._signal_error.emit("Ошибка при получении титульного изображения видео")
+                logger.error(traceback.format_exc())
 
             self._completely_finished_the_work.emit(
                 {"object_youtube": self.__youtube_object, "stream_object": self.__youtube_streams})
 
         except Exception:
             self._signal_error.emit("Ошибка при получении информации о видео")
+            logger.error(traceback.format_exc())
+            self._signal_error_crit.emit()
 
-    def download_video_and_audio(self):
-        # Проверяю все работает и все ли передается
-        logger.info(f"download_video_and_audio path_save: {self.path_save}")
-        logger.info(f"download_video_and_audio youtube_object: {self.youtube_object}")
-        logger.info(f"download_video_and_audio audio_object: {self.audio_object}")
-        logger.info(f"download_video_and_audio video_object: {self.video_object}")
-
-        # self.audio_object[-1].download(self.path_save)
-        self.video_object[-1].download(self.path_save)
-        logger.info("Аудио скачано!")
-        self._signal_stop_work.emit()
+    # def download_video_and_audio(self):
+    #     # Проверяю все работает и все ли передается
+    #     logger.info(f"download_video_and_audio path_save: {self.path_save}")
+    #     logger.info(f"download_video_and_audio youtube_object: {self.youtube_object}")
+    #     logger.info(f"download_video_and_audio audio_object: {self.audio_object}")
+    #     logger.info(f"download_video_and_audio video_object: {self.video_object}")
+    #
+    #     # self.audio_object[-1].download(self.path_save)
+    #     self.video_object[-1].download(self.path_save)
+    #     logger.info("Аудио скачано!")
+    #     self._signal_stop_work.emit()
