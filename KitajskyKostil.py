@@ -5,6 +5,11 @@ from datetime import datetime
 from PyQt5.QtCore import QObject, pyqtSignal
 from loguru import logger
 
+"""
+Класс-заглушка для всевдовизуализации, чтобы пользователь видел, что программа нормально функционирует и не выключал-включал ее по нескольку раз.
+Введен из-за того, что pytube не позволяет параллельно при загрузке выводить прогресс загрузки(
+"""
+
 
 class VisualizationStub(QObject):
     _signal_random_value = pyqtSignal(int)
