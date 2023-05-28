@@ -2,7 +2,7 @@ import os
 import traceback
 import re
 
-from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QIcon, QPixmap
 from loguru import logger
 from datetime import datetime
@@ -11,7 +11,9 @@ from PyQt5 import QtWidgets
 import sys
 
 from Form import Ui_MainWindow
-from Working_with_videos import WorkingWithVideos
+from WorkingWithVideos import WorkingWithVideos
+from UploadingAVideo import UploadingAVideo
+from KitajskyKostil import VisualizationStub
 
 """
 Лучше сделать еще один файл с классом под еще 1 поток!
@@ -31,16 +33,23 @@ from Working_with_videos import WorkingWithVideos
     $ git push --force
     
 создание requirements файла: pip3 freeze > requirements.txt
+
+Манал я эту библиотеку pytube: как оказалось она не способна параллельно давать количество скачанного и скачивать видео (либо у меня руки кривые либо это действительно так),
+ввиду чего было придумано решение сделать "Китайский костыль" - это, выполняемый цикл в отдельном потоке для передачи рандомного значения для прогресс бара.
+Ввиду того, что при скачивании программа, хоть и не умерает, но и ничего не делает, следовательно посльзователь может ее просто вырубить, подлумав, что она зависла.
+Соответственно, подстановка рандомного значения в прогресс бар может частично решить данную проблему.
 """
 
 logger.add("debug.log", format="{time} {level} {message}", level="DEBUG")
 
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
+    _signal_stop_random = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
 
+        self._name_video = None
         self._working_with_videos_class = None
         self._additional_stream_class = None
         self._download_video_class_thread = None
@@ -77,19 +86,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.ui.pushButton_2.setEnabled(False)
 
     @logger.catch()
-    def finished_download_video(self):
-
-        self.ui.comboBox.clear()
-        self.ui.comboBox.setEnabled(False)
-        self.ui.pushButton_3.setEnabled(False)
-
-        self.ui.pushButton_2.setEnabled(False)
-
-        self.ui.lineEdit.clear()
-        self.ui.lineEdit.setEnabled(True)
-        self.ui.pushButton.setEnabled(True)
-
-    @logger.catch()
     def video_and_audio_download(self):
         try:
             self.ui.pushButton_2.setEnabled(False)
@@ -106,39 +102,80 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             logger.info(f"Объект Ютуба: {self.__YouTube_object}")  # объект ютуба
             logger.info(f"Объект аудио: {self._audio}")  # аудио стрим
             logger.info(f"Объект видео: {self.__streams}")  # видео стрим
+            logger.info(f"Название видео: {self._name_video}")
 
             logger.info(f"Тип данных пути: {type(self.__path_saved)}")  # тип данных пусть
             logger.info(f"Тип данных объекта ютуб: {type(self.__YouTube_object)}")  # тип данных объект ютуба
             logger.info(f"Тип данных аудио: {type(self._audio)}")  # тип данных аудио стрим
             logger.info(f"Тип данных видео: {type(self.__streams)}")  # тип данных видео стрим
 
-            # # создание экземпляра класса загрузки видео с нужными параметрами
-            # self._working_with_videos_class = WorkingWithVideos()
-            #
-            # # класс дополнительного потока и помещения объекта в поток
-            # self._additional_stream_class_2 = QThread()
-            # self._working_with_videos_class.moveToThread(self._additional_stream_class)
-            #
-            # # начало потока
-            # self._additional_stream_class_2.started.connect(self._working_with_videos_class.download_video_and_audio)
-            #
-            # # рабочие сигналы
-            # self._working_with_videos_class._signal_progress_download.connect(
-            #     lambda text: self.logging_of_information(text=text, true_false=True))
-            #
-            # # конец потока
-            # self._working_with_videos_class._signal_stop_work.connect(
-            #     lambda: self.logging_of_information(text="Аудио скачано!", true_false=True))
-            #
-            # self._working_with_videos_class._signal_stop_work.connect(lambda: self.finished_download_video)
-            #
-            # self._working_with_videos_class._signal_stop_work.connect(lambda: self._additional_stream_class.quit())
-            #
-            # self._additional_stream_class_2.finished.connect(
-            #     lambda: self.logging_of_information(text="Поток выключен", true_false=True))
-            #
-            # # запуск потока
-            # self._additional_stream_class_2.start()
+            # ___________________________________________Скачивание видео в другом потоке___________________________________________
+
+            # создание экземпляра класса загрузки видео с нужными параметрами
+            self._download_class = UploadingAVideo(path_saved=self.__path_saved, youtube_object=self.__YouTube_object,
+                                                   audio_object=self._audio, video_object=self.__streams,
+                                                   name_video=self._name_video)
+
+            # класс дополнительного потока и помещения объекта в поток
+            self._download_new_thread = QThread()  # поток
+            self._download_class.moveToThread(self._download_new_thread)
+
+            # начало потока
+            self._download_new_thread.started.connect(self._download_class.uploading_a_video)
+            self._download_new_thread.started.connect(lambda: self.ui.progressBar.setValue(0))
+
+            self._download_new_thread.started.connect(
+                lambda: self.logging_of_information(text="Начал загрузку видео", true_false=True)
+            )
+
+            # рабочие сигналы
+            self._download_class._signal_error.connect(
+                lambda text: self.logging_of_information(text=text, true_false=False))
+
+            self._download_class._signal_error.connect(
+                lambda: self.finished_download_video())
+
+            self._download_class._signal_progress_downloaded.connect(lambda text: self.logging_of_information(text=text, true_false=True))
+
+            # конец потока
+            self._download_class._signal_all_finished.connect(self._download_new_thread.quit)
+
+            self._download_new_thread.finished.connect(
+                lambda: self.logging_of_information(text="Download completed successfully!😎", true_false=True))
+
+            self._download_new_thread.finished.connect(lambda: self.ui.progressBar.setValue(100))
+
+            self._download_new_thread.finished.connect(lambda: self.finished_download_video())
+            self._download_new_thread.finished.connect(lambda: self._signal_stop_random.emit(1))
+
+            # запуск потока
+            self._download_new_thread.start()
+
+            # ___________________________________________Конец скачивание видео в другом потоке___________________________________________
+
+            # _____________________________________Заглушка для визуализации скачивнаия в другом потоке___________________________________
+
+            self._stub_visualization_stream = QThread()
+            self._visualization_stub_class = VisualizationStub(parent_window=self)
+
+            # закидываем выполнение в другой поток
+            self._visualization_stub_class.moveToThread(self._stub_visualization_stream)
+
+            # старт потока
+            self._stub_visualization_stream.started.connect(self._visualization_stub_class.visualization_stub_func)
+
+            # рабочие сигналы
+            self._visualization_stub_class._signal_random_value.connect(lambda val: self.ui.progressBar.setValue(val))
+
+            self._visualization_stub_class._signal_random_data.connect(
+                lambda text: self.logging_of_information(text=text, true_false=True))
+
+            # конец потока
+            self._visualization_stub_class._signal_finished.connect(self._stub_visualization_stream.quit)
+
+            # Запуск потока
+            self._stub_visualization_stream.start()
+
 
         except Exception:
 
@@ -283,7 +320,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self._thread_video_information._signal_error.connect(
                 lambda text: self.logging_of_information(text=text, true_false=False))
 
-            self._thread_video_information._signal_error_crit.connect(lambda: self.error_crit)
+            self._thread_video_information._signal_error_crit.connect(lambda: self.error_crit())
 
             self._thread_video_information._signal_streams_true.connect(
                 lambda text: self.logging_of_information(text=text, true_false=True))
@@ -406,8 +443,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.ui.label_15.setText("Нет информации")
             self.ui.label_15.setStyleSheet("color: red;")
 
-
-# ___________________________ Методы для заполнения информации о видосе в полях ___________________________
+    # ___________________________ Методы для заполнения информации о видосе в полях ___________________________
     @logger.catch()
     def image_title_add(self, path: str):
         try:
@@ -468,6 +504,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     @logger.catch()
     def title_add(self, title: str):
         try:
+            self._name_video = title
             _length_symbol = 71
             _words = ''
             if len(title.lower()) > _length_symbol:
@@ -490,6 +527,28 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             logger.info(f"Автор видео: {author}")
         except Exception:
             self.logging_of_information(text="Ошибка при получении автора видео", true_false=False)
+
+    # ___________________________ Выполняется после загрузки видео ___________________________
+    @logger.catch()
+    def finished_download_video(self):
+        try:
+            self.ui.comboBox.clear()
+            self.ui.comboBox.setEnabled(False)
+            self.ui.pushButton_3.setEnabled(False)
+
+            self.ui.pushButton_2.setEnabled(False)
+
+            self.ui.lineEdit.clear()
+            self.ui.lineEdit.setEnabled(True)
+            self.ui.pushButton.setEnabled(True)
+        except Exception:
+            logger.info(f"Ошибка в блоке finished_download_video")
+            logger.error(traceback.format_exc())
+
+    # ХЗ че это, само собой появилось, когда я в левом потоке объявил данный метод
+    @property
+    def signal_stop_random(self):
+        return self._signal_stop_random
 
 
 if __name__ == '__main__':

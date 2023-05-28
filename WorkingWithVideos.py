@@ -37,20 +37,9 @@ class WorkingWithVideos(QObject):
     _completely_finished_the_work = pyqtSignal(dict)
     _signal_error_crit = pyqtSignal()
 
-    # # Сигналы для скачивания видео
-    # _signal_progress_download = pyqtSignal(str)
-    # _signal_stop_work = pyqtSignal()
-
-    def __init__(self, url: str = None, progress_download=None):
+    def __init__(self, url: str = None):
         super(WorkingWithVideos, self).__init__()
         self.url_video = url
-
-    # @logger.catch()
-    # def download_progress(self, stream, chunk, file_handle, bytes_remaining):
-    #     logger.info(f"stream: {stream}")
-    #     logger.info(f"chunk: {chunk}")
-    #     logger.info(f"file_handle: {file_handle}")
-    #     logger.info(f"bytes_remaining: {bytes_remaining}")
 
     @logger.catch()
     @pyqtSlot()
@@ -182,15 +171,3 @@ class WorkingWithVideos(QObject):
             self._signal_error.emit("Ошибка при получении информации о видео")
             logger.error(traceback.format_exc())
             self._signal_error_crit.emit()
-
-    # def download_video_and_audio(self):
-    #     # Проверяю все работает и все ли передается
-    #     logger.info(f"download_video_and_audio path_save: {self.path_save}")
-    #     logger.info(f"download_video_and_audio youtube_object: {self.youtube_object}")
-    #     logger.info(f"download_video_and_audio audio_object: {self.audio_object}")
-    #     logger.info(f"download_video_and_audio video_object: {self.video_object}")
-    #
-    #     # self.audio_object[-1].download(self.path_save)
-    #     self.video_object[-1].download(self.path_save)
-    #     logger.info("Аудио скачано!")
-    #     self._signal_stop_work.emit()
