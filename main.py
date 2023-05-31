@@ -22,7 +22,7 @@ from KitajskyKostil import VisualizationStub
 """
 
 """
-Компиляция приложения в виде установщика - https://pythonist.ru/rukovodstvo-po-pyqt5/
+Компиляция приложения в виде установщика - https://habr.com/ru/companies/vdsina/articles/557316/
 
 Преобразование uic -> py: pyuic5 Form/form_downloader.ui -o Form/Form_downloader.py
 

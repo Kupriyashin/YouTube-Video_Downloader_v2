@@ -4,6 +4,7 @@ from pathlib import Path
 from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
 from loguru import logger
 import moviepy.editor as movie
+import re
 
 
 class UploadingAVideo(QObject):
@@ -43,6 +44,10 @@ class UploadingAVideo(QObject):
             logger.info(f"video_object: {self.video_object}")
             logger.info(f"name_video: {self.name_video}")
 
+            regular_expression = r"[^а-яА-ЯёЁa-zA-Z0-9 ]"
+            self.name_video = re.sub(regular_expression, '', str(self.name_video))
+            logger.info(f"Имя с очисткой от ненужных символов: {self.name_video}")
+
             self.video_path_saved = Path(self.path_saved / "video")
             self.audio_path_saved = Path(self.path_saved / "audio")
 
@@ -64,7 +69,7 @@ class UploadingAVideo(QObject):
             self.video = movie.VideoFileClip(f"{Path(self.video_path_saved/self.name_video)}.webm")
             self.audio = movie.AudioFileClip(f"{Path(self.audio_path_saved/self.name_video)}.webm")
             self.finish_video = self.video.set_audio(self.audio)
-            self.finish_video.write_videofile(f"{Path(self.path_saved/self.name_video)}.webm")
+            self.finish_video.write_videofile(f"{Path(self.path_saved/self.name_video)}.webm", logger=None)
 
             self._signal_progress_downloaded.emit("Удаляю остаточные файлы")
 
@@ -81,3 +86,6 @@ class UploadingAVideo(QObject):
         finally:
             self._signal_all_finished.emit("Загрузка завершена")
             logger.info(f"Сработал блок финали")
+            self.video.close()
+            self.audio.close()
+            self.finish_video.close()
